@@ -13,4 +13,4 @@
 
 ### Using it
 - Choose a symbol [here](https://fontawesome.com/v5.15/icons?d=gallery&p=2&s=brands,solid&m=free).
-- Copy ist unicode, or use directly with ctrl+c and ctrl+v.
+- Copy its unicode, or use directly with ctrl+c and ctrl+v.

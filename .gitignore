@@ -1,0 +1,5 @@
+#binaries
+dwm
+*.rej
+*.orig
+*.o

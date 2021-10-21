@@ -2,17 +2,27 @@
 
 /* appearance */
 static const unsigned int borderpx  = 1;        /* border pixel of windows */
-static const unsigned int gappx     = 5;        /* gaps between windows */
+static const unsigned int gappx     = 10;        /* gaps between windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
-static const char *fonts[]          = { "monospace:size=10" };
+static const int vertpad            = 10;       /* vertical padding of bar */
+static const int sidepad            = 10;       /* horizontal padding of bar */
+static const char *fonts[]          = { "monospace:size=10","fontawesome:size=10" };
 static const char dmenufont[]       = "monospace:size=10";
-static const char col_gray1[]       = "#222222";
-static const char col_gray2[]       = "#444444";
-static const char col_gray3[]       = "#bbbbbb";
-static const char col_gray4[]       = "#eeeeee";
-static const char col_cyan[]        = "#005577";
+static const char col_gray1[]       = "#ff0000";//verm -  bg status bar e outros
+static const char col_gray2[]       = "#fff000";//amarelo - borda n master
+static const char col_gray3[]       = "#00ff00";//verde - cor fg, n selecionado
+static const char col_gray4[]       = "#00ffff";//ciano - cor fg, selecionado
+static const char col_cyan[]        = "#0000ff";//azul - cor bg, selecionado
+/*
+static const char col1[]            = "#ff00ff";//rosa  - n observado
+static const char col2[]            = "#7f00ff";//roxo - n observado
+static const char col3[]            = "#007fff";//azul claro - n observado
+static const char col4[]            = "#003113";//verde escuro - n observado
+static const char col5[]            = "#311b00";//marrom - n observado
+static const char col6[]            = "#000000";//preto - n observado*/
+
 static const char col1[]            = "#ffffff";
 static const char col2[]            = "#ffffff";
 static const char col3[]            = "#ffffff";
@@ -25,14 +35,14 @@ enum { SchemeNorm, SchemeCol1, SchemeCol2, SchemeCol3, SchemeCol4,
 
 static const char *colors[][3]      = {
 	/*               fg         bg         border   */
-	[SchemeNorm]  = { col_gray3, col_gray1, col_gray2 },
+	[SchemeNorm]  = { col_gray3, col_gray1, col_gray2 }, // cor 
 	[SchemeCol1]  = { col1,      col_gray1, col_gray2 },
 	[SchemeCol2]  = { col2,      col_gray1, col_gray2 },
 	[SchemeCol3]  = { col3,      col_gray1, col_gray2 },
 	[SchemeCol4]  = { col4,      col_gray1, col_gray2 },
 	[SchemeCol5]  = { col5,      col_gray1, col_gray2 },
 	[SchemeCol6]  = { col6,      col_gray1, col_gray2 },
-	[SchemeSel]   = { col_gray4, col_cyan,  col_cyan  },
+	[SchemeSel]   = { col_gray4, col_cyan,  col_cyan  }, // cor botao selecionado
 };
 
 /* tagging */
@@ -125,9 +135,9 @@ static Button buttons[] = {
 	/* click                event mask      button          function        argument */
 	{ ClkLtSymbol,          0,              Button1,        setlayout,      {0} },
 	{ ClkLtSymbol,          0,              Button3,        setlayout,      {.v = &layouts[2]} },
-	{ ClkStatusText,        0,              Button1,        sigdsblocks,    {.i = 1} },
-	{ ClkStatusText,        0,              Button2,        sigdsblocks,    {.i = 2} },
-	{ ClkStatusText,        0,              Button3,        sigdsblocks,    {.i = 3} },
+	{ ClkStatusText,        0,              Button1,        sigdwmblocks,    {.i = 1} },
+	{ ClkStatusText,        0,              Button2,        sigdwmblocks,    {.i = 2} },
+	{ ClkStatusText,        0,              Button3,        sigdwmblocks,    {.i = 3} },
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
 	{ ClkClientWin,         MODKEY,         Button2,        togglefloating, {0} },
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },

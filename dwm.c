@@ -60,7 +60,7 @@
 #define TTEXTW(X)               (drw_fontset_getwidth(drw, (X)))
 
 #define STATUSLENGTH            256
-#define DSBLOCKSLOCKFILE        "/var/local/dsblocks/dsblocks.pid"
+#define DWMBLOCKSLOCKFILE        "/var/local/dsblocks/dsblocks.pid"
 #define DELIMITERENDCHAR        10
 #define LSPAD                   (lrpad / 2) /* padding on left side of status text */
 #define RSPAD                   (lrpad / 2) /* padding on right side of status text */
@@ -226,7 +226,7 @@ static void setup(void);
 static void seturgent(Client *c, int urg);
 static void showhide(Client *c);
 static void sigchld(int unused);
-static void sigdsblocks(const Arg *arg);
+static void sigdwmblocks(const Arg *arg);
 static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
@@ -242,7 +242,7 @@ static void unmapnotify(XEvent *e);
 static void updatebarpos(Monitor *m);
 static void updatebars(void);
 static void updateclientlist(void);
-static void updatedsblockssig(int x);
+static void updatedwmblockssig(int x);
 static int updategeom(void);
 static void updatemotifhints(Client *c);
 static void updatenumlockmask(void);
@@ -268,8 +268,10 @@ static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw, ble;     /* bar geometry */
 static int wstext;           /* width of status text */
 static int lrpad;            /* sum of left and right padding for text */
+static int vp;               /* vertical padding for bar */
+static int sp;               /* side padding for bar */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
-static unsigned int dsblockssig;
+static unsigned int dwmblockssig;
 static unsigned int numlockmask = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
 	[ButtonPress] = buttonpress,
@@ -472,8 +474,8 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < ble)
 			click = ClkLtSymbol;
-		else if ((x = selmon->ww - RSPAD - ev->x) > 0 && (x -= wstext - LSPAD - RSPAD) <= 0) {
-			updatedsblockssig(x);
+		else if ((x = selmon->ww - sp - RSPAD - ev->x) > 0 && (x -= wstext - LSPAD - RSPAD) <= 0) {
+			updatedwmblockssig(x);
 			click = ClkStatusText;
 		} else
 			return;
@@ -603,7 +605,7 @@ configurenotify(XEvent *e)
 				for (c = m->clients; c; c = c->next)
 					if (c->isfullscreen)
 						resizeclient(c, m->mx, m->my, m->mw, m->mh);
-				XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
+				XMoveResizeWindow(dpy, m->barwin, m->wx + sp, m->by + vp, m->ww -  2 * sp, bh);
 			}
 			focus(NULL);
 			arrange(NULL);
@@ -757,7 +759,7 @@ drawbar(Monitor *m)
                         tmp = *stc;
                         if (stp != stc) {
                                 *stc = '\0';
-                                x = drw_text(drw, x, 0, TTEXTW(stp), bh, 0, stp, 0);
+                                x = drw_text(drw, x , 0, TTEXTW(stp), bh, 0, stp, 0);
                         }
                         if (tmp == '\0')
                                 break;
@@ -798,7 +800,7 @@ drawbar(Monitor *m)
 
 	if (w > bh) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x, 0, w, bh, 1, 1);
+		drw_rect(drw, x, 0, w - 2 * sp, bh, 1, 1);
 	}
 	drw_map(drw, m->barwin, 0, 0, m->ww, bh);
 }
@@ -1196,9 +1198,9 @@ motionnotify(XEvent *e)
                         focus(NULL);
                 }
                 mon = m;
-        } else if (ev->window == selmon->barwin && (x = selmon->ww - RSPAD - ev->x) > 0
+        } else if (ev->window == selmon->barwin && (x = selmon->ww - sp - RSPAD - ev->x) > 0
                                                 && (x -= wstext - LSPAD - RSPAD) <= 0)
-                updatedsblockssig(x);
+                updatedwmblockssig(x);
         else if (selmon->statushandcursor) {
                 selmon->statushandcursor = 0;
                 XDefineCursor(dpy, selmon->barwin, cursor[CurNormal]->cursor);
@@ -1629,6 +1631,9 @@ setup(void)
 	lrpad = drw->fonts->h;
 	bh = drw->fonts->h + 2;
 	updategeom();
+	sp = sidepad;
+	vp = (topbar == 1) ? vertpad : - vertpad;
+
 	/* init atoms */
 	utf8string = XInternAtom(dpy, "UTF8_STRING", False);
 	wmatom[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
@@ -1657,6 +1662,7 @@ setup(void)
 	/* init bars */
 	updatebars();
 	updatestatus();
+	updatebarpos(selmon);
 	/* supporting window for NetWMCheck */
 	wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
 	XChangeProperty(dpy, wmcheckwin, netatom[NetWMCheck], XA_WINDOW, 32,
@@ -1721,13 +1727,13 @@ sigchld(int unused)
 }
 
 void
-sigdsblocks(const Arg *arg)
+sigdwmblocks(const Arg *arg)
 {
         static int fd = -1;
         struct flock fl;
         union sigval sv;
 
-        if (!dsblockssig)
+        if (!dwmblockssig)
                 return;
         fl.l_type = F_WRLCK;
         fl.l_whence = SEEK_SET;
@@ -1739,7 +1745,7 @@ sigdsblocks(const Arg *arg)
                 close(fd);
                 fl.l_type = F_WRLCK;
         }
-        if ((fd = open(DSBLOCKSLOCKFILE, O_RDONLY | O_CLOEXEC)) == -1)
+        if ((fd = open(DWMBLOCKSLOCKFILE, O_RDONLY | O_CLOEXEC)) == -1)
                 return;
         if (fcntl(fd, F_GETLK, &fl) == -1 || fl.l_type != F_WRLCK) {
                 close(fd);
@@ -1747,7 +1753,7 @@ sigdsblocks(const Arg *arg)
                 return;
         }
 signal:
-        sv.sival_int = (dsblockssig << 8) | arg->i;
+        sv.sival_int = (dwmblockssig << 8) | arg->i;
         sigqueue(fl.l_pid, SIGRTMIN, sv);
 }
 
@@ -1823,7 +1829,7 @@ togglebar(const Arg *arg)
 {
 	selmon->showbar = !selmon->showbar;
 	updatebarpos(selmon);
-	XMoveResizeWindow(dpy, selmon->barwin, selmon->wx, selmon->by, selmon->ww, bh);
+	XMoveResizeWindow(dpy, selmon->barwin, selmon->wx + sp, selmon->by + vp, selmon->ww - 2 * sp, bh);
 	arrange(selmon);
 }
 
@@ -1948,7 +1954,7 @@ updatebars(void)
 	for (m = mons; m; m = m->next) {
 		if (m->barwin)
 			continue;
-		m->barwin = XCreateWindow(dpy, root, m->wx, m->by, m->ww, bh, 0, DefaultDepth(dpy, screen),
+		m->barwin = XCreateWindow(dpy, root, m->wx + sp, m->by + vp, m->ww - 2 * sp, bh, 0, DefaultDepth(dpy, screen),
 				CopyFromParent, DefaultVisual(dpy, screen),
 				CWOverrideRedirect|CWBackPixmap|CWEventMask, &wa);
 		XDefineCursor(dpy, m->barwin, cursor[CurNormal]->cursor);
@@ -1963,11 +1969,11 @@ updatebarpos(Monitor *m)
 	m->wy = m->my;
 	m->wh = m->mh;
 	if (m->showbar) {
-		m->wh -= bh;
-		m->by = m->topbar ? m->wy : m->wy + m->wh;
-		m->wy = m->topbar ? m->wy + bh : m->wy;
+		m->wh = m->wh - vertpad - bh;
+		m->by = m->topbar ? m->wy : m->wy + m->wh + vertpad;
+		m->wy = m->topbar ? m->wy + bh + vp : m->wy;
 	} else
-		m->by = -bh;
+		m->by = -bh - vp;
 }
 
 void
@@ -1985,7 +1991,7 @@ updateclientlist()
 }
 
 void
-updatedsblockssig(int x)
+updatedwmblockssig(int x)
 {
         char *sts = stexts;
         char *stp = stexts;
@@ -2007,7 +2013,7 @@ updatedsblockssig(int x)
                                 selmon->statushandcursor = 1;
                                 XDefineCursor(dpy, selmon->barwin, cursor[CurHand]->cursor);
                         }
-                        dsblockssig = tmp;
+                        dwmblockssig = tmp;
                         return;
                 }
                 stp = ++sts;
@@ -2016,7 +2022,7 @@ updatedsblockssig(int x)
                 selmon->statushandcursor = 0;
                 XDefineCursor(dpy, selmon->barwin, cursor[CurNormal]->cursor);
         }
-        dsblockssig = 0;
+        dwmblockssig = 0;
 }
 
 int

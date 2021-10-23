@@ -60,7 +60,7 @@
 #define TTEXTW(X)               (drw_fontset_getwidth(drw, (X)))
 
 #define STATUSLENGTH            256
-#define DWMBLOCKSLOCKFILE        "/var/local/dsblocks/dsblocks.pid"
+#define DWMBLOCKSLOCKFILE        "/var/local/dwmblocks/dwmblocks.pid"
 #define DELIMITERENDCHAR        10
 #define LSPAD                   (lrpad / 2) /* padding on left side of status text */
 #define RSPAD                   (lrpad / 2) /* padding on right side of status text */
@@ -108,7 +108,7 @@ struct Client {
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh;
 	int bw, oldbw;
 	unsigned int tags;
-	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen, CenterThisWindow;
+	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
 	int issteam;
 	Client *next;
 	Client *snext;
@@ -157,7 +157,6 @@ typedef struct {
 	const char *title;
 	unsigned int tags;
 	int isfloating;
-	int CenterThisWindow;
 	int monitor;
 } Rule;
 
@@ -295,7 +294,7 @@ static Cur *cursor[CurLast];
 static Clr **scheme;
 static Display *dpy;
 static Drw *drw;
-static Monitor *mons, *selmon;
+static Monitor *mons, *selmon, *statmon;
 static Window root, wmcheckwin;
 
 /* configuration, allows nested code to access above variables */
@@ -316,7 +315,6 @@ applyrules(Client *c)
 
 	/* rule matching */
 	c->isfloating = 0;
-        c->CenterThisWindow = 0;
 	c->tags = 0;
 	XGetClassHint(dpy, c->win, &ch);
 	class    = ch.res_class ? ch.res_class : broken;
@@ -332,7 +330,6 @@ applyrules(Client *c)
 		&& (!r->instance || strstr(instance, r->instance)))
 		{
 			c->isfloating = r->isfloating;
-			c->CenterThisWindow = r->CenterThisWindow;
 			c->tags |= r->tags;
 			for (m = mons; m && m->num != r->monitor; m = m->next);
 			if (m)
@@ -743,14 +740,15 @@ drawbar(Monitor *m)
 	Client *c;
 
 	/* draw status first so it can be overdrawn by tags later */
-	if (m == selmon) { /* status is only drawn on selected monitor */
+	if (m == statmon) { /* status is only drawn on selected monitor */
                 char *stc = stextc;
                 char *stp = stextc;
                 char tmp;
-
+						
+					 //bh = bar height
                 drw_setscheme(drw, scheme[SchemeNorm]);
                 x = m->ww - wstext;
-                drw_rect(drw, x, 0, LSPAD, bh, 1, 1); x += LSPAD; /* to keep left padding clean */
+                drw_rect(drw, x - 2*sp , 0, LSPAD, bh, 1, 1); x += LSPAD - 2 * sp; /* to keep left padding clean */
                 for (;;) {
                         if ((unsigned char)*stc >= ' ') {
                                 stc++;
@@ -1629,10 +1627,10 @@ setup(void)
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
 	lrpad = drw->fonts->h;
-	bh = drw->fonts->h + 2;
-	updategeom();
-	sp = sidepad;
+	bh = drw->fonts->h + 2 + user_bh;
+	sp = sidepad + 2*borderpx;
 	vp = (topbar == 1) ? vertpad : - vertpad;
+	updategeom();
 
 	/* init atoms */
 	utf8string = XInternAtom(dpy, "UTF8_STRING", False);
@@ -1662,7 +1660,7 @@ setup(void)
 	/* init bars */
 	updatebars();
 	updatestatus();
-	updatebarpos(selmon);
+	//updatebarpos(selmon);
 	/* supporting window for NetWMCheck */
 	wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
 	XChangeProperty(dpy, wmcheckwin, netatom[NetWMCheck], XA_WINDOW, 32,
@@ -1815,13 +1813,6 @@ tile(Monitor *m)
 			resize(c, m->wx + mw + m->gappx, m->wy + ty, m->ww - mw - (2*c->bw) - 2*m->gappx, h - (2*c->bw), 0);
 			ty += HEIGHT(c) + m->gappx;
 		}
-
-	if (n == 1 && selmon->sel->CenterThisWindow)
-        resizeclient(selmon->sel,
-                (selmon->mw - selmon->mw * 0.5) / 2,
-                (selmon->mh - selmon->mh * 0.5) / 2,
-                selmon->mw * 0.5,
-                selmon->mh * 0.5);
 }
 
 void
@@ -2054,7 +2045,7 @@ updategeom(void)
 				else
 					mons = createmon();
 			}
-			for (i = 0, m = mons; i < nn && m; m = m->next, i++)
+			for (i = 0, m = mons; i < nn && m; m = m->next, i++){
 				if (i >= n
 				|| unique[i].x_org != m->mx || unique[i].y_org != m->my
 				|| unique[i].width != m->mw || unique[i].height != m->mh)
@@ -2067,6 +2058,10 @@ updategeom(void)
 					m->mh = m->wh = unique[i].height;
 					updatebarpos(m);
 				}
+				if(i == statmonval)
+					statmon = m;
+			}
+
 		} else { /* less monitors available nn < n */
 			for (i = nn; i < n; i++) {
 				for (m = mons; m && m->next; m = m->next);
@@ -2080,6 +2075,8 @@ updategeom(void)
 				}
 				if (m == selmon)
 					selmon = mons;
+				if (m == statmon)
+					statmon = mons;
 				cleanupmon(m);
 			}
 		}
@@ -2218,7 +2215,7 @@ updatestatus(void)
                 strcpy(stexts, stextc);
                 wstext = TTEXTW(stextc) + LSPAD + RSPAD;
         }
-        drawbar(selmon);
+        drawbar(statmon);
 }
 
 void

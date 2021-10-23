@@ -5,10 +5,11 @@
 # Also see ../daemons/pulse_daemon.sh
 pacmd list-sinks | awk '
     BEGIN {
-        ICONsn = "\uf028" # headphone unplugged, not muted
-        ICONsm = "\uf028" # headphone unplugged, muted
-        ICONhn = "\uf028" # headphone plugged in, not muted
-        ICONhm = "\uf028" # headphone plugged in, muted
+        ICONsn ="  \" \\uf028 \"  " # headphone unplugged, not muted
+        ICONsm ="  \" \\uf026 \"  " # headphone unplugged, muted
+        ICONhn ="  \" \\uf6a9 \"  " # headphone plugged in, not muted
+        ICONhm ="  \" \\uf027 \"  " # headphone plugged in, muted
+
     }
     f {
         if ($1 == "muted:" && $2 == "yes") {
@@ -32,11 +33,17 @@ pacmd list-sinks | awk '
     }
     END {
         if (f) {
-				system("/usr/bin/printf \"\\uf028           \"")
-				system("/usr/bin/printf \"\\uf026           \"")
-				system("/usr/bin/printf \"\\uf6a9           \"")
-				system("/usr/bin/printf \"\\uf027           \"")
-            printf "\n%s", h ? (m ? ICONhm : ICONhn) : (m ? ICONsm : ICONsn)
+				if (h)
+					if(m)
+						system("/usr/bin/printf \"\\uf026 \"")
+					else
+						if(vb < 60)
+							system("/usr/bin/printf \"\\uf027 \"")
+						else
+							system("/usr/bin/printf \"\\uf028 \"")
+				else
+					system("/usr/bin/printf \"\\uf6a9 \"")
+
             if (vb)
                 print vb
             else

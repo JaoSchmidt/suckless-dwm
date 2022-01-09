@@ -26,6 +26,7 @@
 On Ubuntu: 
  - Requires c packages, I just use `build-essentials`
  - Requires `libxft-dev` package
+ - Requires `libxinerama-dev` package
 
 Compile with `sudo make install`, then `exec dwm`
 Alternativly, move the file `.xinitrc` to user folder and start with `startx` command

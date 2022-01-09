@@ -22,6 +22,13 @@
 - Initial status bar [fix](https://www.reddit.com/r/suckless/comments/nfc3xn/gaps_problem_with_multiple_monitors/) was applied
 - [Rezise hints was deactivated](https://dwm.suckless.org/faq/)
  
+## :arrow_heading_down::arrow_right: Compiling and running
+On Ubuntu: 
+ - Requires c packages, I just use `build-essentials`
+ - Requires `libxft-dev` package
+
+Compile with `sudo make install`, then `exec dwm`
+Alternativly, move the file `.xinitrc` to user folder and start with `startx` command
 
 ## :bulb: FontAwsome
 
